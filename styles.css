@@ -1,0 +1,88 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Arial", sans-serif;
+  background-color: #f0f2f5;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.game-container {
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  width: 800px;
+  max-width: 90%;
+}
+
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.game-header h1 {
+  color: #333;
+  font-size: 24px;
+}
+
+.score {
+  font-size: 18px;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.game-area {
+  background-color: #87ceeb;
+  border: 2px solid #dee2e6;
+  border-radius: 5px;
+  min-height: 500px;
+  position: relative;
+  overflow: hidden;
+}
+
+.controls {
+  margin-top: 20px;
+  text-align: center;
+}
+
+button {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s;
+}
+
+button:hover {
+  background-color: #45a049;
+}
+
+/* Game elements */
+.platform {
+  background-color: #8b4513;
+  position: absolute;
+}
+
+.collectible {
+  background-color: #ffd700;
+  border-radius: 50%;
+  position: absolute;
+}
+
+.player {
+  background-color: #ff0000;
+  position: absolute;
+}

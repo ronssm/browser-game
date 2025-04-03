@@ -1,0 +1,31 @@
+{
+    "name": "browser-game",
+    "version": "1.0.0",
+    "description": "A browser-based platformer game",
+    "main": "game.js",
+    "scripts": {
+        "test": "jest",
+        "test:watch": "jest --watchAll"
+    },
+    "devDependencies": {
+        "jest": "^29.7.0",
+        "jest-environment-jsdom": "^29.7.0"
+    },
+    "jest": {
+        "testEnvironment": "jsdom",
+        "setupFiles": [
+            "./jest.setup.js"
+        ],
+        "transform": {},
+        "injectGlobals": true,
+        "testEnvironmentOptions": {
+            "url": "http://localhost"
+        },
+        "globals": {
+            "describe": true,
+            "test": true,
+            "expect": true,
+            "beforeEach": true
+        }
+    }
+}
