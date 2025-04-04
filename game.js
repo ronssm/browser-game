@@ -74,9 +74,9 @@ class Game {
   }
 
   setupEventListeners() {
-    document.addEventListener("keydown", (e) => {
+    // Keyboard controls
+    this.handleKeyDown = (e) => {
       if (!this.isRunning) return;
-
       switch (e.key) {
         case "ArrowLeft":
           this.player.velocityX = -this.MOVE_SPEED;
@@ -84,22 +84,130 @@ class Game {
         case "ArrowRight":
           this.player.velocityX = this.MOVE_SPEED;
           break;
-        case " ":
+        case "ArrowUp":
+        case " ": // Space bar
           if (!this.player.isJumping) {
             this.player.velocityY = this.JUMP_FORCE;
             this.player.isJumping = true;
           }
           break;
       }
-    });
+    };
 
-    document.addEventListener("keyup", (e) => {
+    this.handleKeyUp = (e) => {
       if (!this.isRunning) return;
-
-      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-        this.player.velocityX = 0;
+      switch (e.key) {
+        case "ArrowLeft":
+        case "ArrowRight":
+          this.player.velocityX = 0;
+          break;
       }
-    });
+    };
+
+    // Mouse controls
+    this.handleMouseDown = (e) => {
+      if (!this.isRunning) return;
+      const rect = this.gameArea.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      // Jump if clicking above player
+      if (y < this.player.y * this.player.height) {
+        if (!this.player.isJumping) {
+          this.player.velocityY = this.JUMP_FORCE;
+          this.player.isJumping = true;
+        }
+      } else {
+        // Move left or right based on click position
+        if (x < this.player.x * this.player.width) {
+          this.player.velocityX = -this.MOVE_SPEED;
+        } else {
+          this.player.velocityX = this.MOVE_SPEED;
+        }
+      }
+    };
+
+    this.handleMouseUp = () => {
+      if (!this.isRunning) return;
+      this.player.velocityX = 0;
+    };
+
+    // Mobile touch controls
+    this.handleTouchStart = (e) => {
+      if (!this.isRunning) return;
+      e.preventDefault();
+      const rect = this.gameArea.getBoundingClientRect();
+      const touch = e.touches[0];
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+
+      // Jump if tapping anywhere
+      if (!this.player.isJumping) {
+        this.player.velocityY = this.JUMP_FORCE;
+        this.player.isJumping = true;
+      }
+
+      // Movement based on screen halves
+      const screenWidth = rect.width;
+      const leftHalf = screenWidth / 2;
+
+      if (x < leftHalf) {
+        this.player.velocityX = -this.MOVE_SPEED;
+      } else {
+        this.player.velocityX = this.MOVE_SPEED;
+      }
+    };
+
+    this.handleTouchMove = (e) => {
+      if (!this.isRunning) return;
+      e.preventDefault();
+      const rect = this.gameArea.getBoundingClientRect();
+      const touch = e.touches[0];
+      const x = touch.clientX - rect.left;
+
+      // Movement based on screen halves
+      const screenWidth = rect.width;
+      const leftHalf = screenWidth / 2;
+
+      if (x < leftHalf) {
+        this.player.velocityX = -this.MOVE_SPEED;
+      } else {
+        this.player.velocityX = this.MOVE_SPEED;
+      }
+    };
+
+    this.handleTouchEnd = (e) => {
+      if (!this.isRunning) return;
+      e.preventDefault();
+      this.player.velocityX = 0;
+    };
+
+    // Add event listeners
+    if (typeof window !== "undefined") {
+      window.addEventListener("keydown", this.handleKeyDown);
+      window.addEventListener("keyup", this.handleKeyUp);
+      this.gameArea.addEventListener("mousedown", this.handleMouseDown);
+      this.gameArea.addEventListener("mouseup", this.handleMouseUp);
+      this.gameArea.addEventListener("touchstart", this.handleTouchStart);
+      this.gameArea.addEventListener("touchmove", this.handleTouchMove);
+      this.gameArea.addEventListener("touchend", this.handleTouchEnd);
+      this.gameArea.addEventListener("touchcancel", this.handleTouchEnd);
+      window.addEventListener("resize", this.handleResize);
+    }
+  }
+
+  cleanup() {
+    if (typeof window !== "undefined") {
+      window.removeEventListener("keydown", this.handleKeyDown);
+      window.removeEventListener("keyup", this.handleKeyUp);
+      this.gameArea.removeEventListener("mousedown", this.handleMouseDown);
+      this.gameArea.removeEventListener("mouseup", this.handleMouseUp);
+      this.gameArea.removeEventListener("touchstart", this.handleTouchStart);
+      this.gameArea.removeEventListener("touchmove", this.handleTouchMove);
+      this.gameArea.removeEventListener("touchend", this.handleTouchEnd);
+      this.gameArea.removeEventListener("touchcancel", this.handleTouchEnd);
+      window.removeEventListener("resize", this.handleResize);
+    }
   }
 
   startGame() {
