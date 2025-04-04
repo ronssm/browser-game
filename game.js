@@ -7,6 +7,29 @@ class Game {
     this.startButton = document.getElementById("startButton");
     this.gameTime = 0; // Add game time tracking
 
+    // Handle missing DOM elements gracefully
+    if (!this.gameArea) {
+      console.warn("Game area element not found, creating a default one");
+      this.gameArea = document.createElement("div");
+      this.gameArea.id = "gameArea";
+      document.body.appendChild(this.gameArea);
+    }
+
+    if (!this.scoreElement) {
+      console.warn("Score element not found, creating a default one");
+      this.scoreElement = document.createElement("div");
+      this.scoreElement.id = "score";
+      document.body.appendChild(this.scoreElement);
+    }
+
+    if (!this.startButton) {
+      console.warn("Start button not found, creating a default one");
+      this.startButton = document.createElement("button");
+      this.startButton.id = "startButton";
+      this.startButton.textContent = "Start Game";
+      document.body.appendChild(this.startButton);
+    }
+
     // Adjusted game constants for better physics
     this.GRAVITY = 0.3;
     this.JUMP_FORCE = -10;
@@ -160,11 +183,6 @@ class Game {
     // Check if player is out of bounds (game over condition)
     const gameAreaHeight = this.gameArea.getBoundingClientRect().height;
     if (this.player.y + this.player.height > gameAreaHeight) {
-      console.log("Game Over triggered:", {
-        playerY: this.player.y,
-        playerHeight: this.player.height,
-        gameAreaHeight: gameAreaHeight,
-      });
       this.gameOver();
       return;
     }
@@ -172,33 +190,99 @@ class Game {
     // Check platform collisions
     this.player.isJumping = true;
 
-    this.platforms.forEach((platform) => {
+    // Sort platforms by distance to player for better collision resolution
+    const sortedPlatforms = [...this.platforms].sort((a, b) => {
+      const distA =
+        Math.abs(this.player.x - a.x) + Math.abs(this.player.y - a.y);
+      const distB =
+        Math.abs(this.player.x - b.x) + Math.abs(this.player.y - b.y);
+      return distA - distB;
+    });
+
+    // First pass: Check and resolve vertical collisions
+    for (const platform of sortedPlatforms) {
       if (this.checkCollision(this.player, platform)) {
-        // Determine collision direction based on previous position
-        const fromLeft = prevX + this.player.width <= platform.x;
-        const fromRight = prevX >= platform.x + platform.width;
         const fromTop = prevY + this.player.height <= platform.y;
         const fromBottom = prevY >= platform.y + platform.height;
-
-        // Resolve collision based on direction
-        if (fromLeft) {
-          this.player.x = platform.x - this.player.width;
-          this.player.velocityX = 0;
-        } else if (fromRight) {
-          this.player.x = platform.x + platform.width;
-          this.player.velocityX = 0;
-        }
 
         if (fromTop) {
           this.player.y = platform.y - this.player.height;
           this.player.velocityY = 0;
           this.player.isJumping = false;
+          break;
         } else if (fromBottom) {
           this.player.y = platform.y + platform.height;
           this.player.velocityY = 0;
+          break;
         }
       }
-    });
+    }
+
+    // Second pass: Check and resolve horizontal collisions
+    for (const platform of sortedPlatforms) {
+      if (this.checkCollision(this.player, platform)) {
+        const fromLeft = prevX + this.player.width <= platform.x;
+        const fromRight = prevX >= platform.x + platform.width;
+
+        if (fromLeft) {
+          this.player.x = platform.x - this.player.width;
+          this.player.velocityX = 0;
+          break;
+        } else if (fromRight) {
+          this.player.x = platform.x + platform.width;
+          this.player.velocityX = 0;
+          break;
+        }
+      }
+    }
+
+    // Final pass: Ensure no collisions remain
+    for (const platform of sortedPlatforms) {
+      if (this.checkCollision(this.player, platform)) {
+        // If still colliding, try to resolve by moving the player out
+        const dx =
+          this.player.x +
+          this.player.width / 2 -
+          (platform.x + platform.width / 2);
+        const dy =
+          this.player.y +
+          this.player.height / 2 -
+          (platform.y + platform.height / 2);
+
+        if (Math.abs(dx) > Math.abs(dy)) {
+          // Move horizontally
+          if (dx > 0) {
+            this.player.x = platform.x + platform.width;
+          } else {
+            this.player.x = platform.x - this.player.width;
+          }
+          this.player.velocityX = 0;
+        } else {
+          // Move vertically
+          if (dy > 0) {
+            this.player.y = platform.y + platform.height;
+          } else {
+            this.player.y = platform.y - this.player.height;
+          }
+          this.player.velocityY = 0;
+        }
+      }
+    }
+
+    // Apply boundary constraints
+    const gameAreaWidth = this.gameArea.getBoundingClientRect().width;
+    if (this.player.x < 0) {
+      this.player.x = 0;
+      this.player.velocityX = 0;
+    } else if (this.player.x + this.player.width > gameAreaWidth) {
+      this.player.x = gameAreaWidth - this.player.width;
+      this.player.velocityX = 0;
+    }
+
+    if (this.player.y < 0) {
+      this.player.y = 0;
+      this.player.velocityY = 0;
+    }
 
     // Check collectible collisions
     this.collectibles.forEach((collectible) => {
@@ -211,23 +295,6 @@ class Game {
         this.updateScore();
       }
     });
-
-    // Keep player in bounds
-    const gameAreaWidth = this.gameArea.getBoundingClientRect().width;
-    if (this.player.x < 0) {
-      this.player.x = 0;
-      this.player.velocityX = 0;
-    }
-    if (this.player.x + this.player.width > gameAreaWidth) {
-      this.player.x = gameAreaWidth - this.player.width;
-      this.player.velocityX = 0;
-    }
-
-    // Prevent player from going above the game area
-    if (this.player.y < 0) {
-      this.player.y = 0;
-      this.player.velocityY = 0;
-    }
   }
 
   draw() {
@@ -290,11 +357,18 @@ class Game {
   }
 
   updateScore() {
-    this.scoreElement.textContent = this.score;
+    if (this.scoreElement) {
+      this.scoreElement.textContent = this.score;
+    }
   }
 
   gameOver() {
     this.isRunning = false;
+
+    if (!this.gameArea) {
+      console.warn("Game area not found, cannot show game over screen");
+      return;
+    }
 
     // Create game over overlay
     const gameOverOverlay = document.createElement("div");
