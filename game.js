@@ -1,9 +1,9 @@
 class Game {
-  constructor() {
+  constructor(gameAreaId = "gameArea", scoreElementId = "score") {
     this.score = 0;
     this.isRunning = false;
-    this.gameArea = document.getElementById("gameArea");
-    this.scoreElement = document.getElementById("score");
+    this.gameArea = document.getElementById(gameAreaId);
+    this.scoreElement = document.getElementById(scoreElementId);
     this.startButton = document.getElementById("startButton");
     this.gameTime = 0; // Add game time tracking
 
@@ -11,14 +11,14 @@ class Game {
     if (!this.gameArea) {
       console.warn("Game area element not found, creating a default one");
       this.gameArea = document.createElement("div");
-      this.gameArea.id = "gameArea";
+      this.gameArea.id = gameAreaId;
       document.body.appendChild(this.gameArea);
     }
 
     if (!this.scoreElement) {
       console.warn("Score element not found, creating a default one");
       this.scoreElement = document.createElement("div");
-      this.scoreElement.id = "score";
+      this.scoreElement.id = scoreElementId;
       document.body.appendChild(this.scoreElement);
     }
 
@@ -128,27 +128,48 @@ class Game {
   }
 
   resetGame() {
-    // Reset player position and state
-    this.player.x = 50;
-    this.player.y = 50;
-    this.player.velocityY = 0;
-    this.player.velocityX = 0;
-    this.player.isJumping = false;
-
-    // Reset score and collectibles
+    // Reset game state
     this.score = 0;
-    this.updateScore();
-    this.collectibles.forEach((collectible) => {
-      collectible.collected = false;
-    });
+    this.gameTime = 0;
+    this.isRunning = true;
 
-    // Clear any existing game over overlay
-    const existingOverlay = this.gameArea.querySelector(".game-over-overlay");
-    if (existingOverlay) {
-      this.gameArea.removeChild(existingOverlay);
+    // Reset player position and velocity
+    this.player = {
+      x: 50,
+      y: 50,
+      width: 30,
+      height: 30,
+      velocityX: 0,
+      velocityY: 0,
+      isJumping: false,
+    };
+
+    // Reset collectibles
+    this.collectibles = this.collectibles.map((c) => ({
+      ...c,
+      collected: false,
+    }));
+
+    // Update score display
+    this.scoreElement.textContent = "0";
+
+    // Remove any existing overlays
+    const gameOverOverlay = this.gameArea.querySelector(".game-over-overlay");
+    const successOverlay = this.gameArea.querySelector(".success-overlay");
+    if (gameOverOverlay) {
+      this.gameArea.removeChild(gameOverOverlay);
+    }
+    if (successOverlay) {
+      this.gameArea.removeChild(successOverlay);
     }
 
-    this.gameTime = 0; // Reset game time
+    // Cancel any existing animation frame
+    if (typeof window !== "undefined" && this.gameLoop) {
+      window.cancelAnimationFrame(this.gameLoop);
+    }
+
+    // Start the game loop
+    this.gameLoop();
   }
 
   gameLoop() {
@@ -165,6 +186,9 @@ class Game {
 
   update() {
     if (!this.isRunning) return;
+
+    // Store initial time
+    const initialTime = this.gameTime;
 
     // Update game time
     this.gameTime += 16.67; // Approximately 60 FPS
@@ -294,6 +318,7 @@ class Game {
     // Check if all collectibles are collected
     if (allCollected) {
       this.isRunning = false; // Stop the game
+      this.gameTime = initialTime; // Revert time to before the update
       this.showSuccessMessage();
       return;
     }
@@ -303,8 +328,9 @@ class Game {
   }
 
   draw() {
-    // Store the game over overlay if it exists
+    // Store both overlays if they exist
     const gameOverOverlay = this.gameArea.querySelector(".game-over-overlay");
+    const successOverlay = this.gameArea.querySelector(".success-overlay");
 
     // Clear the game area
     this.gameArea.innerHTML = "";
@@ -346,9 +372,12 @@ class Game {
     playerElement.style.backgroundColor = "#FF0000";
     this.gameArea.appendChild(playerElement);
 
-    // Restore the game over overlay if it existed
+    // Restore the overlays if they existed
     if (gameOverOverlay) {
       this.gameArea.appendChild(gameOverOverlay);
+    }
+    if (successOverlay) {
+      this.gameArea.appendChild(successOverlay);
     }
   }
 
@@ -367,192 +396,149 @@ class Game {
     }
   }
 
-  gameOver() {
+  showSuccessMessage() {
     this.isRunning = false;
-
-    if (!this.gameArea) {
-      console.warn("Game area not found, cannot show game over screen");
-      return;
+    if (typeof window !== "undefined" && this.gameLoop) {
+      window.cancelAnimationFrame(this.gameLoop);
     }
 
-    // Create game over overlay
-    const gameOverOverlay = document.createElement("div");
-    gameOverOverlay.className = "game-over-overlay";
-    gameOverOverlay.style.position = "fixed";
-    gameOverOverlay.style.top = "0";
-    gameOverOverlay.style.left = "0";
-    gameOverOverlay.style.width = "100%";
-    gameOverOverlay.style.height = "100%";
-    gameOverOverlay.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
-    gameOverOverlay.style.display = "flex";
-    gameOverOverlay.style.flexDirection = "column";
-    gameOverOverlay.style.justifyContent = "center";
-    gameOverOverlay.style.alignItems = "center";
-    gameOverOverlay.style.color = "white";
-    gameOverOverlay.style.fontSize = "24px";
-    gameOverOverlay.style.zIndex = "9999";
+    // Remove existing overlays
+    const existingOverlay = this.gameArea.querySelector(".success-overlay");
+    if (existingOverlay) {
+      this.gameArea.removeChild(existingOverlay);
+    }
 
-    // Create game over message
-    const gameOverMessage = document.createElement("div");
-    gameOverMessage.textContent = "Game Over!";
-    gameOverMessage.style.marginBottom = "20px";
-    gameOverMessage.style.fontSize = "48px";
-    gameOverMessage.style.fontWeight = "bold";
-    gameOverMessage.style.color = "#FF4444";
-    gameOverMessage.style.textShadow = "2px 2px 4px rgba(0, 0, 0, 0.5)";
-
-    // Create final score message
-    const finalScore = document.createElement("div");
-    finalScore.textContent = `Final Score: ${this.score}`;
-    finalScore.style.marginBottom = "10px";
-    finalScore.style.fontSize = "32px";
-    finalScore.style.color = "#FFD700";
-
-    // Create stats container
-    const statsContainer = document.createElement("div");
-    statsContainer.style.marginBottom = "30px";
-    statsContainer.style.textAlign = "center";
-    statsContainer.style.fontSize = "18px";
-    statsContainer.style.color = "#CCCCCC";
-
-    // Calculate collectibles stats
-    const totalCollectibles = this.collectibles.length;
-    const collectedCount = this.collectibles.filter((c) => c.collected).length;
-    const collectiblesPercentage = Math.round(
-      (collectedCount / totalCollectibles) * 100
-    );
-
-    // Add stats information
-    const statsText = document.createElement("div");
-    const timePlayed = Math.floor(this.gameTime / 1000);
-    statsText.innerHTML = `
-      <div style="margin-bottom: 10px;">Collectibles: ${collectedCount}/${totalCollectibles} (${collectiblesPercentage}%)</div>
-      <div>Time Played: ${timePlayed} seconds</div>
-    `;
-    statsContainer.appendChild(statsText);
-
-    // Create controls info
-    const controlsInfo = document.createElement("div");
-    controlsInfo.style.marginBottom = "30px";
-    controlsInfo.style.textAlign = "center";
-    controlsInfo.style.fontSize = "16px";
-    controlsInfo.style.color = "#AAAAAA";
-    controlsInfo.innerHTML = `
-      <div style="margin-bottom: 5px;">Controls:</div>
-      <div>← → : Move Left/Right</div>
-      <div>Space : Jump</div>
-    `;
-
-    // Create restart button
-    const restartButton = document.createElement("button");
-    restartButton.textContent = "Play Again";
-    restartButton.style.padding = "15px 30px";
-    restartButton.style.fontSize = "20px";
-    restartButton.style.cursor = "pointer";
-    restartButton.style.backgroundColor = "#4CAF50";
-    restartButton.style.color = "white";
-    restartButton.style.border = "none";
-    restartButton.style.borderRadius = "8px";
-    restartButton.style.transition = "all 0.3s ease";
-    restartButton.style.boxShadow = "0 4px 6px rgba(0, 0, 0, 0.1)";
-
-    // Add hover effect
-    restartButton.onmouseover = () => {
-      restartButton.style.backgroundColor = "#45a049";
-      restartButton.style.transform = "scale(1.05)";
-    };
-    restartButton.onmouseout = () => {
-      restartButton.style.backgroundColor = "#4CAF50";
-      restartButton.style.transform = "scale(1)";
-    };
-
-    restartButton.addEventListener("click", () => {
-      // Remove overlay and reset game state
-      this.gameArea.removeChild(gameOverOverlay);
-
-      // Reset all game state
-      this.player = {
-        x: 50,
-        y: 50,
-        width: 30,
-        height: 30,
-        velocityY: 0,
-        velocityX: 0,
-        isJumping: false,
-      };
-
-      this.score = 0;
-      this.updateScore();
-      this.startButton.textContent = "Restart Game";
-
-      // Reset collectibles
-      this.collectibles.forEach((collectible) => {
-        collectible.collected = false;
-      });
-
-      // Set running state and start game loop
-      this.isRunning = true;
-      this.gameLoop();
-    });
-
-    // Add elements to overlay
-    gameOverOverlay.appendChild(gameOverMessage);
-    gameOverOverlay.appendChild(finalScore);
-    gameOverOverlay.appendChild(statsContainer);
-    gameOverOverlay.appendChild(controlsInfo);
-    gameOverOverlay.appendChild(restartButton);
-
-    // Add overlay to game area
-    this.gameArea.appendChild(gameOverOverlay);
-  }
-
-  showSuccessMessage() {
     // Create success overlay
     const overlay = document.createElement("div");
     overlay.className = "success-overlay";
-    overlay.style.position = "fixed";
-    overlay.style.top = "0";
-    overlay.style.left = "0";
-    overlay.style.width = "100%";
-    overlay.style.height = "100%";
-    overlay.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
-    overlay.style.display = "flex";
-    overlay.style.flexDirection = "column";
-    overlay.style.justifyContent = "center";
-    overlay.style.alignItems = "center";
-    overlay.style.color = "white";
-    overlay.style.fontSize = "24px";
-    overlay.style.zIndex = "1000";
-
-    overlay.innerHTML = `
-      <h2 style="color: #4CAF50; font-size: 48px; margin-bottom: 20px; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);">Congratulations!</h2>
-      <p>You collected all the coins!</p>
-      <p>Final Score: ${this.score}</p>
-      <p>Time: ${Math.round(this.gameTime / 1000)} seconds</p>
-      <button id="continueButton" style="margin-top: 20px; padding: 15px 30px; font-size: 20px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">Play Again</button>
+    overlay.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      font-family: Arial, sans-serif;
+      z-index: 1000;
     `;
 
-    // Add hover effects to continue button
-    const continueButton = overlay.querySelector("#continueButton");
-    continueButton.style.transition = "all 0.3s ease";
+    // Add success content
+    overlay.innerHTML = `
+      <h1 style="font-size: 48px; margin-bottom: 20px;">Congratulations!</h1>
+      <p style="font-size: 24px; margin-bottom: 10px;">You collected all items!</p>
+      <p style="font-size: 18px; margin-bottom: 20px;">Final Score: ${
+        this.score
+      }</p>
+      <p style="font-size: 18px; margin-bottom: 20px;">Time Played: ${Math.floor(
+        this.gameTime / 1000
+      )} seconds</p>
+      <button id="continueButton" style="
+        padding: 10px 20px;
+        font-size: 18px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s, transform 0.2s;
+      ">Play Again</button>
+    `;
 
+    // Add hover effects to the continue button
+    const continueButton = overlay.querySelector("#continueButton");
     continueButton.addEventListener("mouseover", () => {
       continueButton.style.backgroundColor = "#45a049";
       continueButton.style.transform = "scale(1.05)";
     });
-
     continueButton.addEventListener("mouseout", () => {
       continueButton.style.backgroundColor = "#4CAF50";
       continueButton.style.transform = "scale(1)";
     });
 
+    // Add click handler for continue button
     continueButton.addEventListener("click", () => {
-      overlay.remove();
       this.resetGame();
-      this.startGame();
     });
 
-    document.body.appendChild(overlay);
+    // Add overlay to game area
+    this.gameArea.appendChild(overlay);
+  }
+
+  gameOver() {
+    this.isRunning = false;
+    if (typeof window !== "undefined" && this.gameLoop) {
+      window.cancelAnimationFrame(this.gameLoop);
+    }
+
+    // Remove existing overlays
+    const existingOverlay = this.gameArea.querySelector(".game-over-overlay");
+    if (existingOverlay) {
+      this.gameArea.removeChild(existingOverlay);
+    }
+
+    // Create game over overlay
+    const overlay = document.createElement("div");
+    overlay.className = "game-over-overlay";
+    overlay.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      font-family: Arial, sans-serif;
+      z-index: 1000;
+    `;
+
+    // Add game over content
+    overlay.innerHTML = `
+      <h1 style="font-size: 48px; margin-bottom: 20px;">Game Over!</h1>
+      <p style="font-size: 24px; margin-bottom: 10px;">Final Score: ${
+        this.score
+      }</p>
+      <p style="font-size: 18px; margin-bottom: 20px;">Time Played: ${Math.floor(
+        this.gameTime / 1000
+      )} seconds</p>
+      <button id="restartButton" style="
+        padding: 10px 20px;
+        font-size: 18px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s, transform 0.2s;
+      ">Play Again</button>
+    `;
+
+    // Add hover effects to the restart button
+    const restartButton = overlay.querySelector("#restartButton");
+    restartButton.addEventListener("mouseover", () => {
+      restartButton.style.backgroundColor = "#45a049";
+      restartButton.style.transform = "scale(1.05)";
+    });
+    restartButton.addEventListener("mouseout", () => {
+      restartButton.style.backgroundColor = "#4CAF50";
+      restartButton.style.transform = "scale(1)";
+    });
+
+    // Add click handler for restart button
+    restartButton.addEventListener("click", () => {
+      this.resetGame();
+    });
+
+    // Add overlay to game area
+    this.gameArea.appendChild(overlay);
   }
 
   // Add more game methods here
