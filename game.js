@@ -190,17 +190,8 @@ class Game {
     // Check platform collisions
     this.player.isJumping = true;
 
-    // Sort platforms by distance to player for better collision resolution
-    const sortedPlatforms = [...this.platforms].sort((a, b) => {
-      const distA =
-        Math.abs(this.player.x - a.x) + Math.abs(this.player.y - a.y);
-      const distB =
-        Math.abs(this.player.x - b.x) + Math.abs(this.player.y - b.y);
-      return distA - distB;
-    });
-
     // First pass: Check and resolve vertical collisions
-    for (const platform of sortedPlatforms) {
+    for (const platform of this.platforms) {
       if (this.checkCollision(this.player, platform)) {
         const fromTop = prevY + this.player.height <= platform.y;
         const fromBottom = prevY >= platform.y + platform.height;
@@ -219,7 +210,7 @@ class Game {
     }
 
     // Second pass: Check and resolve horizontal collisions
-    for (const platform of sortedPlatforms) {
+    for (const platform of this.platforms) {
       if (this.checkCollision(this.player, platform)) {
         const fromLeft = prevX + this.player.width <= platform.x;
         const fromRight = prevX >= platform.x + platform.width;
@@ -237,7 +228,7 @@ class Game {
     }
 
     // Final pass: Ensure no collisions remain
-    for (const platform of sortedPlatforms) {
+    for (const platform of this.platforms) {
       if (this.checkCollision(this.player, platform)) {
         // If still colliding, try to resolve by moving the player out
         const dx =
@@ -284,8 +275,9 @@ class Game {
       this.player.velocityY = 0;
     }
 
-    // Check collectible collisions
-    this.collectibles.forEach((collectible) => {
+    // Check for collectible collisions
+    let allCollected = true;
+    for (const collectible of this.collectibles) {
       if (
         !collectible.collected &&
         this.checkCollision(this.player, collectible)
@@ -294,7 +286,20 @@ class Game {
         this.score += 10;
         this.updateScore();
       }
-    });
+      if (!collectible.collected) {
+        allCollected = false;
+      }
+    }
+
+    // Check if all collectibles are collected
+    if (allCollected) {
+      this.isRunning = false; // Stop the game
+      this.showSuccessMessage();
+      return;
+    }
+
+    // Draw the game state
+    this.draw();
   }
 
   draw() {
@@ -499,6 +504,55 @@ class Game {
 
     // Add overlay to game area
     this.gameArea.appendChild(gameOverOverlay);
+  }
+
+  showSuccessMessage() {
+    // Create success overlay
+    const overlay = document.createElement("div");
+    overlay.className = "success-overlay";
+    overlay.style.position = "fixed";
+    overlay.style.top = "0";
+    overlay.style.left = "0";
+    overlay.style.width = "100%";
+    overlay.style.height = "100%";
+    overlay.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
+    overlay.style.display = "flex";
+    overlay.style.flexDirection = "column";
+    overlay.style.justifyContent = "center";
+    overlay.style.alignItems = "center";
+    overlay.style.color = "white";
+    overlay.style.fontSize = "24px";
+    overlay.style.zIndex = "1000";
+
+    overlay.innerHTML = `
+      <h2 style="color: #4CAF50; font-size: 48px; margin-bottom: 20px; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);">Congratulations!</h2>
+      <p>You collected all the coins!</p>
+      <p>Final Score: ${this.score}</p>
+      <p>Time: ${Math.round(this.gameTime / 1000)} seconds</p>
+      <button id="continueButton" style="margin-top: 20px; padding: 15px 30px; font-size: 20px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">Play Again</button>
+    `;
+
+    // Add hover effects to continue button
+    const continueButton = overlay.querySelector("#continueButton");
+    continueButton.style.transition = "all 0.3s ease";
+
+    continueButton.addEventListener("mouseover", () => {
+      continueButton.style.backgroundColor = "#45a049";
+      continueButton.style.transform = "scale(1.05)";
+    });
+
+    continueButton.addEventListener("mouseout", () => {
+      continueButton.style.backgroundColor = "#4CAF50";
+      continueButton.style.transform = "scale(1)";
+    });
+
+    continueButton.addEventListener("click", () => {
+      overlay.remove();
+      this.resetGame();
+      this.startGame();
+    });
+
+    document.body.appendChild(overlay);
   }
 
   // Add more game methods here
